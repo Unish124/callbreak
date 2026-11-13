@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" crossorigin="anonymous"></script>
 <link rel="manifest" href="manifest.webmanifest">
+<script src="genie.js" defer></script>
 <meta name="theme-color" content="#000000">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -74,7 +76,7 @@ input[type=text]{width:100%;min-height:48px;border:0;border-radius:12px;backgrou
 .dock{display:flex;justify-content:flex-end;padding:8px 16px 16px}.dock .btn{width:auto;padding:0 26px;border-radius:18px;box-shadow:0 4px 14px rgba(0,0,0,.25)}.acts [data-a=cfg]{display:none}
 .rest{display:none}
 dialog{border:0;border-radius:20px 20px 0 0;background:var(--bg);color:var(--fg);padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));width:100%;max-width:520px;margin:auto auto 0;max-height:92dvh;overflow:auto;animation:up .22s ease-out}
-dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog::backdrop{background:rgba(0,0,0,var(--bd,.4))}
 @keyframes up{from{transform:translateY(24px);opacity:0}}
 dialog h3{margin:0 0 12px;font-size:1.1rem;text-align:center}
 .er{display:flex;gap:14px;align-items:center;padding:8px 14px}.er .nm{flex:1;min-width:0}.er .bd{color:var(--mut);font-size:.9rem}
@@ -126,6 +128,8 @@ dialog h3{margin:0 0 12px;font-size:1.1rem;text-align:center}
 .ph{width:1.9em;height:1.9em;border-radius:50%;object-fit:cover;flex:none}.pn{display:flex;align-items:center;gap:10px}.pn .ph{width:30px;height:30px}.pbt{display:flex;justify-content:center;gap:14px;margin-bottom:10px}
 .st2{display:flex;gap:10px;margin:14px 0 12px}.st2>div{flex:1;background:var(--sf);border-radius:var(--r);padding:10px;text-align:center;box-shadow:var(--sh)}.st2 b{display:block;font-size:1.5rem}.st2 small{color:var(--mut)}
 .chs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.ac{display:inline-flex;align-items:center;gap:2px;background:var(--sep);border-radius:99px;padding:0 4px 0 12px;min-height:34px}.ac button{min-width:32px;min-height:32px;color:var(--mut)}.arow{display:flex;gap:8px;align-items:center}.arow input{margin:0}.arow .btn{width:auto;min-height:48px;padding:0 18px}
+.qrb{background:#fff;padding:14px;border-radius:14px;margin:10px auto;width:min(76vw,300px)}.qrb svg{display:block;width:100%;height:auto}
+.gr{display:flex;align-items:stretch}.gr+.gr{border-top:1px solid var(--sep)}.gr .row{flex:1;min-width:0;border-top:0!important}.del2{width:54px;color:var(--neg);display:flex;align-items:center;justify-content:center;opacity:.8}
 </style>
 </head>
 <body>
@@ -146,6 +150,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 const g=()=>S.games.find(x=>x.id===S.cur);
 const er=(n=4)=>({b:Array(n).fill(null),t:Array(n).fill(null)});
 const IX=G=>G.names.map((_,i)=>i);
+const TRK=G=>G.names.length===3?17:13;
 const sc=(b,t)=>b==null||t==null?null:(t>=b?Math.round((b+(t-b)/10)*10)/10:-b);
 const fmt=v=>v==null?"":(v>0?"+":"")+v.toFixed(1);
 const done=r=>r.b.every(x=>x!=null)&&r.t.every(x=>x!=null);
@@ -159,8 +164,10 @@ const ct=G=>+String(G.id).slice(1)||G.t;
 const lastFilled=G=>{let m=0;G.rounds.forEach((r,i)=>{if(r.b.some(x=>x!=null)||r.t.some(x=>x!=null))m=i+1});return m};
 let D={title:"",names:["","","",""],pids:[null,null,null,null],np:4,n:5,custom:false},ed=null;
 function theme(){const r=document.documentElement;S.theme==="system"?r.removeAttribute("data-theme"):r.setAttribute("data-theme",S.theme)}
+const TRASH='<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M9 3h6l1 1h4v2H4V4h4l1-1zM6 8h12l-1 12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 8z"/></svg>';
 function gameRow(x){const T=tot(x),L=any(x)?T.indexOf(Math.max(...T)):-1,c=x.rounds.filter(done).length;
- return`<button class="row" data-a="open" data-id="${x.id}"><div><b>${esc(x.title)}</b><small>${fdt(ct(x))} · ${c} of ${x.rounds.length} rounds</small></div><div class="r tn">${L<0?"":esc(x.names[L])+"<br>"+T[L].toFixed(1)}</div></button>`}
+ return`<div class="gr"><button class="row" data-a="open" data-id="${x.id}"><div><b>${esc(x.title)}</b><small>${fdt(ct(x))} \u00B7 ${c} of ${x.rounds.length} rounds</small></div><div class="r tn">${L<0?"":esc(x.names[L])+"<br>"+T[L].toFixed(1)}</div></button><button class="del2" data-a="askdel" data-id="${x.id}" aria-label="Delete game">${TRASH}</button></div>`}
+function askDel(id){const G=S.games.find(x=>x.id===id);if(!G)return;sheet(`<h3>Delete game?</h3><div class="hint">\u201C${esc(G.title)}\u201D will be removed permanently. Players and photos are not affected.</div><div class="dact"><button class="lnk" data-a="close">Cancel</button><button class="btn" style="background:var(--neg);color:#fff" data-a="dodel" data-id="${esc(id)}">Delete</button></div>`)}
 function render(){
  theme();const v=S.view,A=$("app");
  if(v==="game"&&!g())S.view=v="home";
@@ -172,7 +179,7 @@ function render(){
  else if(v==="new"){const R=[5,8,10,13],cu=D.custom;
   A.innerHTML=`<div class="page"><div class="top"><button class="lnk" data-a="home">Cancel</button><h2>New game</h2><span style="width:56px"></span></div>
   <label class="f">Title (optional)<input type="text" id="dt" maxlength="30" value="${esc(D.title)}" placeholder="e.g. Friday night" autocomplete="off"></label>
-  <label class="f">Players</label><div class="seg" style="margin-top:-12px">${[3,4].map(k=>`<button class="${D.np===k?"on":""}" data-a="npl" data-n="${k}">${k}</button>`).join("")}</div>${[...Array(D.np).keys()].map(p=>`<div class="np"><button class="av" data-a="pickp" data-p="${p}" aria-label="Choose profile for player ${p+1}">${avIn(prof(D.pids[p])||(D.names[p]?{name:D.names[p]}:null))}</button><label class="f">Player ${p+1}<input type="text" maxlength="14" data-n="${p}" value="${esc(D.names[p])}" placeholder="Player ${p+1}" autocomplete="off"></label></div>`).join("")}
+  <label class="f">Players</label><div class="seg" style="margin-top:-12px">${[3,4].map(k=>`<button class="${D.np===k?"on":""}" data-a="npl" data-n="${k}">${k}</button>`).join("")}</div>${D.np===3?'<div class="hint" style="text-align:left;margin:-8px 2px 0">3 players: 51 cards, 17 tricks each round</div>':""}${[...Array(D.np).keys()].map(p=>`<div class="np"><button class="av" data-a="pickp" data-p="${p}" aria-label="Choose profile for player ${p+1}">${avIn(prof(D.pids[p])||(D.names[p]?{name:D.names[p]}:null))}</button><label class="f">Player ${p+1}<input type="text" maxlength="14" data-n="${p}" value="${esc(D.names[p])}" placeholder="Player ${p+1}" autocomplete="off"></label></div>`).join("")}
   <label class="f">Rounds</label><div class="seg" style="margin-top:-12px">${R.map(n=>`<button class="${!cu&&D.n===n?"on":""}" data-a="rn" data-n="${n}">${n}</button>`).join("")}<button class="${cu?"on":""}" data-a="rc">Custom</button></div>
   ${cu?`<div class="stp" style="justify-content:center"><button data-a="dn" data-d="-1">\u2212</button><output class="tn">${D.n}</output><button data-a="dn" data-d="1">+</button></div>`:""}
   <div class="grow"></div><button class="btn" data-a="start">Start Game</button></div>`}
@@ -240,27 +247,58 @@ async function shareFile(k){const txt=JSON.stringify(payload(k)),nm=fname(k);
  for(const ty of ["application/json","text/plain"]){try{const f=new File([txt],nm,{type:ty});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:nm});return}}catch(e){if(e&&e.name==="AbortError")return}}
  note("Sharing isn't available on this device. Use Download file instead.")}
 
+const b64e=u=>{let s="";for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")};
+const b64d=t=>{t=t.replace(/-/g,"+").replace(/_/g,"/");while(t.length%4)t+="=";const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u};
+const pipe=async(u,cs)=>new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(cs)).arrayBuffer());
+async function enc(txt){const u=new TextEncoder().encode(txt);try{if(window.CompressionStream)return"z"+b64e(await pipe(u,new CompressionStream("deflate-raw")))}catch(e){}return"r"+b64e(u)}
+async function dec(c){let u=b64d(c.slice(1));if(c[0]==="z")u=await pipe(u,new DecompressionStream("deflate-raw"));return new TextDecoder().decode(u)}
+const packG=G=>JSON.stringify({i:G.id,t:G.t,ti:G.title,k:G.ct?1:0,n:G.names,r:G.rounds.map(r=>[...r.b,...r.t].map(x=>x==null?-1:x))});
+const unpackG=o=>{const n=o.n.length;if(!Array.isArray(o.n)||n<2||n>6||!Array.isArray(o.r)||!o.r.length||!o.r.every(a=>Array.isArray(a)&&a.length===2*n))throw 0;return{id:String(o.i),t:+o.t||Date.now(),title:String(o.ti||"Game"),ct:!!o.k,names:o.n.map(x=>String(x)),rounds:o.r.map(a=>({b:a.slice(0,n).map(x=>x<0?null:x),t:a.slice(n).map(x=>x<0?null:x)})),shown:0}};
+async function qrShare(G){if(typeof qrcode==="undefined")return note("The QR code tool needs an internet connection the first time.");
+ const url=location.href.split("#")[0]+"#cb="+await enc(packG(G));
+ if(url.length>1500)return note("This game is too big for a QR code. Use Export instead.");
+ let svg;try{const q=qrcode(0,"L");q.addData(url);q.make();svg=q.createSvgTag(6,0)}catch(e){return note("Could not make a QR code for this game.")}
+ sheet(`<h3>Share game</h3><div class="qrb">${svg}</div><div class="hint">Ask a friend to scan this with their phone camera, or in Callbreak under Settings \u2192 Scan QR code. Photos are not included.</div><div class="dact" style="grid-template-columns:1fr"><button class="btn" data-a="close">Done</button></div>`)}
+async function gotCode(c){try{const G=unpackG(JSON.parse(await dec(c))),[a,u]=impG([G]);save();render();
+ sheet(`<h3>${a?"Game received":u?"Game updated":"Already saved"}</h3><div class="hint">${esc(G.title)} \u00B7 ${G.names.map(esc).join(", ")}</div><div class="dact"><button class="lnk" data-a="close">Close</button><button class="btn" data-a="vgame" data-id="${esc(G.id)}">Open game</button></div>`)}catch(e){note("That QR code could not be read")}}
+let SC=null;const stopScan=()=>{if(SC){SC.on=false;SC.st.getTracks().forEach(t=>t.stop());SC=null}};
+async function scanQR(){if(!("BarcodeDetector" in window))return note("This browser can't scan QR codes. Scan with your phone camera app instead.");
+ let st;try{st=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})}catch(e){return note("Camera access was not allowed.")}
+ sheet(`<h3>Scan QR code</h3><video id="sv" playsinline muted style="width:100%;border-radius:14px;background:#000"></video><div class="dact" style="grid-template-columns:1fr"><button class="lnk" data-a="sstop" style="text-align:center">Cancel</button></div>`);
+ const v=$("sv");v.srcObject=st;try{await v.play()}catch(e){}const det=new BarcodeDetector({formats:["qr_code"]});SC={st,on:true};
+ const loop=async()=>{if(!SC||!SC.on)return;try{const r=await det.detect(v),m=r[0]&&/#cb=([zr][\w-]+)/.exec(r[0].rawValue);if(m){stopScan();return gotCode(m[1])}}catch(e){}setTimeout(loop,250)};loop()}
 function sheet(h){dlg.innerHTML='<div class="grab"></div>'+h;if(!dlg.open)dlg.showModal()}
-function openEd(i,m){const G=g(),r=G.rounds[i];ed={i,m,b:[...r.b],t:[...r.t],auto:false};drawEd()}
-const chips=(k,p,lo)=>`<div class="chips">${Array.from({length:14-lo},(_,j)=>{const v=lo+j,on=ed[k][p]===v;return`<button class="chip${on?" on":""}${k==="t"&&ed.b[p]===v?" ring":""}${on&&k==="t"&&p===ed.b.length-1&&ed.auto?" auto":""}" data-a="pick" data-k="${k}" data-p="${p}" data-v="${v}">${v}</button>`}).join("")}</div>`;
-function drawChips(){const G=g(),{m,i}=ed,k=m,lo=m==="b"?1:0,s=ed.t.reduce((a,x)=>a+(x||0),0),all=ed.t.every(x=>x!=null),ok=m==="b"?ed.b.every(x=>x!=null):all&&s===13;
+function openEd(i,m){const G=g(),r=G.rounds[i];ed={i,m,b:[...r.b],t:[...r.t],auto:false,T:TRK(G)};drawEd()}
+const chips=(k,p,lo)=>`<div class="chips">${Array.from({length:ed.T+1-lo},(_,j)=>{const v=lo+j,on=ed[k][p]===v;return`<button class="chip${on?" on":""}${k==="t"&&ed.b[p]===v?" ring":""}${on&&k==="t"&&p===ed.b.length-1&&ed.auto?" auto":""}" data-a="pick" data-k="${k}" data-p="${p}" data-v="${v}">${v}</button>`}).join("")}</div>`;
+function drawChips(){const G=g(),{m,i}=ed,k=m,lo=m==="b"?1:0,s=ed.t.reduce((a,x)=>a+(x||0),0),all=ed.t.every(x=>x!=null),ok=m==="b"?ed.b.every(x=>x!=null):all&&s===ed.T;
  const tg=p=>{if(m!=="t")return"";const q=sc(ed.b[p],ed.t[p]);return`<span class="tg">${p===ed.b.length-1&&ed.auto?'<em class="au">Auto</em>':""}<em>Bid ${ed.b[p]}</em><b class="${q!=null&&q<0?"neg":"pos"}">${q==null?"":fmt(q)}</b></span>`};
- const msg=m==="b"?"":all&&s===13?'<div class="okl">\u2713 All 13 tricks counted</div>':`<div class="hint${s>13||(all&&s<13)?" w":""}" style="text-align:left">${s} of 13 tricks counted</div>`;
- sheet(`<h3 style="text-align:left;font-size:1.4rem;margin-bottom:4px">Round ${i+1} \u00B7 ${m==="b"?"Bids":"Tricks won"}</h3><div class="hint" style="text-align:left;margin:0 0 4px">${m==="b"?"Tap how many tricks each player calls (1\u201313).":"Tap how many tricks each player took. The last player fills in by itself."}</div>`+IX(G).map(p=>`<div class="pl"><span class="pn">${pav(G,p)}${esc(G.names[p])}</span>${tg(p)}</div>${chips(k,p,lo)}`).join("")+msg+`<div class="dact" style="margin-top:14px"><button class="lnk" data-a="close">Cancel</button><button class="btn" data-a="saveR"${ok?"":" disabled"}>${m==="b"?"Start round":"Save round"}</button></div>`)}
-function drawEd(){if(ed.m!=="x")return drawChips();const G=g(),{m,i}=ed,s=ed.t.reduce((a,x)=>a+(x||0),0),w=m!=="b"&&ed.t.some(x=>x!=null)&&s!==13;
+ const msg=m==="b"?"":all&&s===ed.T?`<div class="okl">\u2713 All ${ed.T} tricks counted</div>`:`<div class="hint${s>ed.T||(all&&s<ed.T)?" w":""}" style="text-align:left">${s} of ${ed.T} tricks counted</div>`;
+ sheet(`<h3 style="text-align:left;font-size:1.4rem;margin-bottom:4px">Round ${i+1} \u00B7 ${m==="b"?"Bids":"Tricks won"}</h3><div class="hint" style="text-align:left;margin:0 0 4px">${m==="b"?`Tap how many tricks each player calls (1\u2013${ed.T}).`:"Tap how many tricks each player took. The last player fills in by itself."}</div>`+IX(G).map(p=>`<div class="pl"><span class="pn">${pav(G,p)}${esc(G.names[p])}</span>${tg(p)}</div>${chips(k,p,lo)}`).join("")+msg+`<div class="dact" style="margin-top:14px"><button class="lnk" data-a="close">Cancel</button><button class="btn" data-a="saveR"${ok?"":" disabled"}>${m==="b"?"Start round":"Save round"}</button></div>`)}
+function drawEd(){if(ed.m!=="x")return drawChips();const G=g(),{m,i}=ed,s=ed.t.reduce((a,x)=>a+(x||0),0),w=m!=="b"&&ed.t.some(x=>x!=null)&&s!==ed.T;
  const ok=m==="b"?ed.b.every(x=>x!=null):m==="t"?ed.t.every(x=>x!=null):true;
  const ttl=m==="b"?`Round ${i+1} \u00B7 Bids`:m==="t"?`Round ${i+1} \u00B7 Results`:`Edit round ${i+1}`;
  const rows=IX(G).map(p=>`<div class="er"><div class="nm">${esc(G.names[p])}</div>${m==="t"?`<span class="bd tn">Bid ${ed.b[p]}</span>`:stp("b",p,"Bid",ed.b[p])}${m==="b"?"":stp("t",p,"Tricks",ed.t[p])}</div>`).join("");
- sheet(`<h3>${ttl}</h3><div class="list">${rows}</div>${m==="b"?"":`<div class="hint${w?" w":""}">Tricks entered: ${s} of 13</div>`}<div class="dact" style="margin-top:${m==="b"?16:0}px"><button class="btn sec" data-a="close">Cancel</button><button class="btn" data-a="saveR"${ok?"":" disabled"}>${m==="b"?"Save bids":m==="t"?"Save results":"Save"}</button></div>`)}
+ sheet(`<h3>${ttl}</h3><div class="list">${rows}</div>${m==="b"?"":`<div class="hint${w?" w":""}">Tricks entered: ${s} of ${ed.T}</div>`}<div class="dact" style="margin-top:${m==="b"?16:0}px"><button class="btn sec" data-a="close">Cancel</button><button class="btn" data-a="saveR"${ok?"":" disabled"}>${m==="b"?"Save bids":m==="t"?"Save results":"Save"}</button></div>`)}
 function summary(){const G=g(),T=tot(G),o=IX(G).sort((a,b)=>T[b]-T[a]);
  sheet(`<h3>${ci_done(G)?"Final result":"Standings"}</h3><div class="list">${o.map(p=>`<div class="rk"><span class="n tn">${rk(T,p)}</span><span class="${rk(T,p)===1?"w":""}">${rk(T,p)===1&&ci_done(G)?"<small>Winner</small>":""}${esc(G.names[p])}</span><span class="v tn${T[p]<0?" neg":""}">${T[p].toFixed(1)}</span></div>`).join("")}</div><div class="dact" style="grid-template-columns:1fr 1fr"><button class="btn sec" data-a="home">Home</button><button class="btn" data-a="close">Scorecard</button></div>`)}
 const ci_done=G=>cur(G)<0;
 function cfg(){const G=g(),m=Math.max(1,lastFilled(G));ed={n:G.rounds.length,m};
  sheet(`<h3>Edit game</h3><label class="f">Title<input type="text" id="ct" maxlength="30" value="${esc(G.title)}"></label>${IX(G).map(p=>`<label class="f" style="margin-top:8px">Player ${p+1}<input type="text" maxlength="14" data-n="${p}" value="${esc(G.names[p])}" placeholder="Player ${p+1}"></label>`).join("")}
  <div class="er" style="padding:12px 0"><div class="nm">Rounds<small style="display:block;color:var(--mut);font-weight:400;font-size:.72rem">Minimum ${m} (rounds with scores are kept)</small></div><div></div><div class="stp"><button data-a="cn" data-d="-1">\u2212</button><output class="tn" id="cno">${ed.n}</output><button data-a="cn" data-d="1">+</button></div></div>
- <div class="dact"><button class="btn sec" data-a="close">Cancel</button><button class="btn" data-a="saveC">Save</button></div><button class="btn del" data-a="delg">Delete game</button>`)}
-function settings(){sheet(`<h3>Settings</h3><div class="list" style="margin-bottom:16px"><button class="row" data-a="profs"><div><b>Player profiles</b><small>${S.profiles.length} saved \u00B7 add faces for your games</small></div><span class="r">\u203A</span></button></div><div class="sec" style="margin:0 2px 6px"><span>Backup &amp; share</span></div><div class="list" style="margin-bottom:16px"><button class="row" data-a="xa"><div><b>Export everything</b><small>Games and players in one file</small></div><span class="r">\u203A</span></button><button class="row" data-a="xg"><div><b>Export games</b><small>${S.games.length} saved \u00B7 file you can share</small></div><span class="r">\u203A</span></button><button class="row" data-a="xp"><div><b>Export players</b><small>${S.profiles.length} profiles with photos</small></div><span class="r">\u203A</span></button><label class="row" style="cursor:pointer"><div><b>Import data</b><small>Open a Callbreak export file</small></div><span class="r">\u203A</span><input type="file" accept=".json,application/json" id="imp" hidden></label></div><label class="f">Appearance</label><div class="seg" style="margin-top:4px">${["system","light","dark"].map(t=>`<button class="${S.theme===t?"on":""}" data-a="th" data-t="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join("")}</div>
- ${IP?'<button class="btn sec" data-a="install" style="margin-bottom:12px">Install app</button>':""}<div class="hint">${STG?"Storage is protected on this device.":"Saved in this browser. Export a backup now and then."}</div><p class="hint" style="margin-top:18px"><b>Callbreak</b> \u2014 Made by Unish<br>Score = bid plus extra tricks \u00F7 10 when the bid is made, minus the bid when it is not. Rotate to landscape and use TV Mode for a clean scoreboard.</p><button class="btn" data-a="close">Done</button>`)}
+ <div class="dact"><button class="btn sec" data-a="close">Cancel</button><button class="btn" data-a="saveC">Save</button></div><button class="btn sec" data-a="qrg" style="margin-top:10px">Share game by QR</button><button class="btn del" data-a="delg">Delete game</button>`)}
+function settings(){sheet(`<h3>Settings</h3><div class="list" style="margin-bottom:16px"><button class="row" data-a="profs"><div><b>Player profiles</b><small>${S.profiles.length} saved \u00B7 add faces for your games</small></div><span class="r">\u203A</span></button></div><div class="sec" style="margin:0 2px 6px"><span>Backup &amp; share</span></div><div class="list" style="margin-bottom:16px"><button class="row" data-a="xa"><div><b>Export everything</b><small>Games and players in one file</small></div><span class="r">\u203A</span></button><button class="row" data-a="xg"><div><b>Export games</b><small>${S.games.length} saved \u00B7 file you can share</small></div><span class="r">\u203A</span></button><button class="row" data-a="xp"><div><b>Export players</b><small>${S.profiles.length} profiles with photos</small></div><span class="r">\u203A</span></button>${"BarcodeDetector" in window?'<button class="row" data-a="scan"><div><b>Scan QR code</b><small>Receive a game from a friend</small></div><span class="r">\u203A</span></button>':""}<label class="row" style="cursor:pointer"><div><b>Import data</b><small>Open a Callbreak export file</small></div><span class="r">\u203A</span><input type="file" accept=".json,application/json" id="imp" hidden></label></div><label class="f">Appearance</label><div class="seg" style="margin-top:4px">${["system","light","dark"].map(t=>`<button class="${S.theme===t?"on":""}" data-a="th" data-t="${t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join("")}</div>
+ ${animBlock()}${IP?'<button class="btn sec" data-a="install" style="margin-bottom:12px">Install app</button>':""}<div class="hint">${STG?"Storage is protected on this device.":"Saved in this browser. Export a backup now and then."}</div><p class="hint" style="margin-top:18px"><b>Callbreak</b> \u2014 Made by Unish<br>Score = bid plus extra tricks \u00F7 10 when the bid is made, minus the bid when it is not. Rotate to landscape and use TV Mode for a clean scoreboard.</p><button class="btn del" data-a="askquit">Quit app</button><button class="btn" data-a="close">Done</button>`)}
+function animBlock(){const G=window.GenieFX;if(!G)return"";const m=G.getMode(),st=G.status();
+ const n=m!=="genie"?"Sheets slide up from the bottom.":st==="reduced"?"Paused: this device has reduced motion turned on, so Classic is used.":st==="unsupported"?"This browser can't draw the genie effect, so Classic is used.":"Sheets fly out of the button you tap and back into it.";
+ return`<label class="f" style="margin-top:16px">Window animation</label><div class="seg" style="margin-top:4px">${["genie","classic"].map(x=>`<button class="${m===x?"on":""}" data-a="anim" data-m="${x}">${x[0].toUpperCase()+x.slice(1)}</button>`).join("")}</div><div class="hint" style="text-align:left;margin:6px 2px 14px">${n}</div>`}
+/* quit confirmation */
+function askQuit(){sheet(`<h3>Quit Callbreak?</h3><div class="hint">Are you sure you want to quit the app? Your games are saved automatically.</div><div class="dact"><button class="lnk" data-a="close">Cancel</button><button class="btn" style="background:var(--neg);color:#fff" data-a="quit">Quit</button></div>`)}
+let leaving=false,trap=false;
+function doQuit(){leaving=true;save();try{dlg.close()}catch(e){}try{window.close()}catch(e){}
+ setTimeout(()=>{try{history.go(trap?-2:-1)}catch(e){}},60);
+ setTimeout(()=>{if(leaving)showBye()},700)}
+function showBye(){if(dlg.open)dlg.close();$("app").innerHTML=`<div class="page" style="justify-content:center;text-align:center"><h2 style="margin:0;font-size:1.4rem">Callbreak is closed</h2><p class="hint" style="margin:0 0 6px">You can close this window or swipe the app away from your recent apps.</p><button class="btn" data-a="reopen">Open again</button></div>`}
+function reopen(){leaving=false;render()}
 function names(){const o=[];dlg.querySelectorAll("input[data-n]").forEach(i=>o[+i.dataset.n]=i.value.trim()||"Player "+(+i.dataset.n+1));return o}
 document.addEventListener("input",e=>{const i=e.target;if(i.id==="pn"){PE.name=i.value;PE.err="";const w=$("perr");if(w)w.remove();const b=$("psv");if(b)b.disabled=!PE.name.trim();return}if(S.view==="new"&&!dlg.open){if(i.id==="dt")D.title=i.value;else if(i.dataset.n!=null){const p=+i.dataset.n;D.names[p]=i.value;const m=findP(i.value);D.pids[p]=m?m.id:null;const b=i.closest(".np").querySelector(".av");if(b)b.innerHTML=avIn(m||(i.value.trim()?{name:i.value}:null))}}});
 document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!el)return;const a=el.dataset.a,d=el.dataset;
@@ -275,12 +313,19 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!
  else if(a==="open"){S.cur=d.id;S.clean=false;go("game")}
  else if(a==="set")settings();
  else if(a==="th"){S.theme=d.t;theme();save();settings()}
+ else if(a==="anim"){if(window.GenieFX)GenieFX.setMode(d.m);settings()}
+ else if(a==="askquit")askQuit();
+ else if(a==="quit")doQuit();
+ else if(a==="reopen")reopen();
  else if(a==="clean"){S.clean=!S.clean;render()}
  else if(a==="close")dlg.close();
  else if(a==="enter"){const G=g(),[m,i]=ph(G);if(m==="d")summary();else openEd(i,m)}
  else if(a==="edit"){if(S.clean)return;openEd(+d.r,"x")}
- else if(a==="pick"){const p=+d.p;ed[d.k][p]=+d.v;if(d.k==="t"){const L=ed.t.length-1;if(p===L)ed.auto=false;else{const f=ed.t.slice(0,L);if(f.every(x=>x!=null)){const q=f.reduce((x,y)=>x+y,0);if(q<=13&&(ed.auto||ed.t[L]==null)){ed.t[L]=13-q;ed.auto=true}else if(q>13&&ed.auto){ed.t[L]=null;ed.auto=false}}else if(ed.auto){ed.t[L]=null;ed.auto=false}}}drawEd()}
+ else if(a==="pick"){const p=+d.p;ed[d.k][p]=+d.v;if(d.k==="t"){const L=ed.t.length-1;if(p===L)ed.auto=false;else{const f=ed.t.slice(0,L);if(f.every(x=>x!=null)){const q=f.reduce((x,y)=>x+y,0);if(q<=ed.T&&(ed.auto||ed.t[L]==null)){ed.t[L]=ed.T-q;ed.auto=true}else if(q>ed.T&&ed.auto){ed.t[L]=null;ed.auto=false}}else if(ed.auto){ed.t[L]=null;ed.auto=false}}}drawEd()}
  else if(a==="install"){if(IP){IP.prompt();IP=null;settings()}}
+ else if(a==="qrg")qrShare(g());
+ else if(a==="scan")scanQR();
+ else if(a==="sstop"){stopScan();settings()}
  else if(a==="profs")profs();
  else if(a==="vgame"){S.cur=d.id;S.clean=false;S.view="game";dlg.close();render()}
  else if(a==="xg"||a==="xp"||a==="xa")openExport(a[1]);
@@ -296,12 +341,14 @@ document.addEventListener("click",e=>{const el=e.target.closest("[data-a]");if(!
  else if(a==="pickp"){PP=+d.p;PB="pick";pickSheet()}
  else if(a==="usep"){if(d.id){const p=prof(d.id);D.pids[PP]=p.id;D.names[PP]=p.name}else D.pids[PP]=null;PB="profs";dlg.close();render()}
  else if(a==="undo"){if(U)U();U=null;$("toast").style.display="none"}
- else if(a==="adj"){const lo=d.k==="b"?1:0;let v=ed[d.k][+d.p];v=v==null?lo:Math.min(13,Math.max(lo,v+ +d.d));ed[d.k][+d.p]=v;drawEd()}
+ else if(a==="adj"){const lo=d.k==="b"?1:0;let v=ed[d.k][+d.p];v=v==null?lo:Math.min(ed.T,Math.max(lo,v+ +d.d));ed[d.k][+d.p]=v;drawEd()}
  else if(a==="saveR"){const G=g(),pv=JSON.parse(JSON.stringify(G.rounds[ed.i])),ri=ed.i,em=ed.m;G.rounds[ed.i]={b:ed.b,t:ed.m==="b"?G.rounds[ed.i].t:ed.t};G.t=Date.now();const fin=cur(G)<0&&!G.shown;if(fin)G.shown=1;if(cur(G)>=0)G.shown=0;dlg.close();render();if(fin)summary();if(em!=="x")toast(`Round ${ri+1} ${em==="b"?"bids saved":"scored"}`,()=>{G.rounds[ri]=pv;G.shown=0;render()})}
  else if(a==="cfg")cfg();
  else if(a==="cn"){ed.n=Math.min(30,Math.max(ed.m,ed.n+ +d.d));$("cno").textContent=ed.n}
  else if(a==="saveC"){const G=g();G.title=$("ct").value.trim()||G.title;G.names=names();while(G.rounds.length<ed.n)G.rounds.push(er(G.names.length));G.rounds.length=ed.n;if(cur(G)>=0)G.shown=0;dlg.close();render()}
- else if(a==="delg"){if(confirm("Delete this game permanently?")){S.games=S.games.filter(x=>x.id!==S.cur);S.cur=null;go("home")}}
+ else if(a==="delg")askDel(S.cur);
+ else if(a==="askdel")askDel(d.id);
+ else if(a==="dodel"){S.games=S.games.filter(x=>x.id!==d.id);if(S.cur===d.id){S.cur=null;if(S.view==="game")S.view="home"}dlg.close();render()}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&S.clean&&!dlg.open){S.clean=false;render()}});
 document.addEventListener("change",e=>{const f=e.target;if(f.id==="pf"&&f.files&&f.files[0])readPhoto(f.files[0],u=>{PE.photo=u;drawPE()})});
@@ -310,14 +357,30 @@ document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="an"){
 let dr=null;
 dlg.addEventListener("pointerdown",e=>{if(!e.target.closest(".grab,h3"))return;dr={y:e.clientY,t:Date.now(),dy:0};try{dlg.setPointerCapture(e.pointerId)}catch(x){}dlg.style.animation="none";dlg.style.transition="none"});
 dlg.addEventListener("pointermove",e=>{if(!dr)return;dr.dy=Math.max(0,e.clientY-dr.y);dlg.style.transform=`translateY(${dr.dy}px)`});
-const endDrag=()=>{if(!dr)return;const v=dr.dy/((Date.now()-dr.t)||1),cl=dr.dy>110||(v>.6&&dr.dy>30);dr=null;dlg.style.transition="transform .2s";if(cl){dlg.style.transform="translateY(110%)";setTimeout(()=>{dlg.close();dlg.style.transform="";dlg.style.transition="";dlg.style.animation=""},190)}else{dlg.style.transform="";setTimeout(()=>{dlg.style.transition="";dlg.style.animation=""},210)}};
+const endDrag=()=>{if(!dr)return;const v=dr.dy/((Date.now()-dr.t)||1),cl=dr.dy>110||(v>.6&&dr.dy>30),dy0=dr.dy;dr=null;
+ if(cl&&window.GenieFX&&GenieFX.isActive()){GenieFX.prepareClose(dy0);dlg.style.transform="";dlg.style.transition="";dlg.style.animation="";dlg.close();return}
+ dlg.style.transition="transform .2s";if(cl){dlg.style.transform="translateY(110%)";setTimeout(()=>{dlg.close();dlg.style.transform="";dlg.style.transition="";dlg.style.animation=""},190)}else{dlg.style.transform="";setTimeout(()=>{dlg.style.transition="";dlg.style.animation=""},210)}};
 dlg.addEventListener("pointerup",endDrag);dlg.addEventListener("pointercancel",endDrag);
 dlg.addEventListener("click",e=>{if(e.target!==dlg)return;const r=dlg.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dlg.close()});
 addEventListener("beforeinstallprompt",e=>{e.preventDefault();IP=e});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().then(v=>{STG=!!v},()=>{})}catch(e){}
 try{if("serviceWorker" in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}
-if(RST)idbGet().then(t=>{RST=false;if(!t)return;try{const o=JSON.parse(t);if(o&&o.games&&(o.games.length||(o.profiles||[]).length)){S=o;if(!S.profiles)S.profiles=[];save();render()}}catch(e){}});
+dlg.addEventListener("close",stopScan);
+/* Back button: close sheet -> leave TV mode -> go Home -> ask before quitting.
+   The guard history entry is only added after the first tap (browsers ignore earlier ones). */
+function armTrap(){if(trap)return;try{history.replaceState({cb:0},"",location.href);history.pushState({cb:1},"",location.href);trap=true}catch(e){}}
+["pointerdown","keydown"].forEach(ev=>addEventListener(ev,armTrap,{once:true,capture:true}));
+addEventListener("popstate",e=>{if(!trap||leaving||!e.state||e.state.cb!==0)return;
+ try{history.pushState({cb:1},"",location.href)}catch(x){}
+ if(dlg.open){dlg.close();return}
+ if(S.clean){S.clean=false;render();return}
+ if(S.view!=="home"){S.view="home";render();return}
+ askQuit()});
+/* Installed app on desktop: closing the window asks first (the browser shows its own wording). */
+try{if(matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches||matchMedia("(display-mode: minimal-ui)").matches||navigator.standalone)addEventListener("beforeunload",e=>{if(leaving)return;e.preventDefault();e.returnValue=""})}catch(e){}
+const PR=()=>{const m=/^#cb=([zr][\w-]+)/.exec(location.hash);if(m){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}gotCode(m[1])}};
 render();
+if(RST)idbGet().then(t=>{RST=false;if(!t)return;try{const o=JSON.parse(t);if(o&&o.games&&(o.games.length||(o.profiles||[]).length)){S=o;if(!S.profiles)S.profiles=[];save();render()}}catch(e){}}).then(PR,PR);else PR();
 </script>
 </body>
 </html>
